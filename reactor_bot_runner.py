@@ -1,27 +1,40 @@
 python
-from telegram.ext import CommandHandler, MessageHandler, Filters
+from aiogram import Bot, Dispatcher, types
+from aiogram.types import Message
+from aiogram.utils import executor
+import asyncio
 
-def start(update, context):
-    update.message.reply_text("Welcome! Send /create to begin creating your own reactor bot.")
+Dictionary to keep track of running bots
+running_bots = {}
 
-def create(update, context):
-    steps = (
-        "1. Go to @BotFather\n"
-        "2. Create a new bot\n"
-        "3. Copy the bot token\n"
-        "4. Send me the token here"
-    )
-    update.message.reply_text(steps)
+Example user data (you can load from file/db)
+user_data = {
+    "123456789": {
+        "token": "7609560980:AAEqVWKDKZMYSZbf9GOswKzK8TCOwYiZDCg",
+        "reacts": ["💗", "🥰", "💫", "🌸", "😍", "🤩", "💖", "💓"]
+    }
+}
 
-def handle_token(update, context):
-    token = update.message.text.strip()
-    if len(token) > 40:
-        update.message.reply_text("Got the token. Setting up your bot...")
-        # এখানে custom bot setup কোড থাকবে
-    else:
-        update.message.reply_text("Invalid token. Please try again.")
+async def start_bot(user_id, token, reacts):
+    bot = Bot(token=token)
+    dp = Dispatcher(bot)
 
-def setup_handlers(dispatcher):
-    dispatcher.add_handler(CommandHandler("start", start))
-    dispatcher.add_handler(CommandHandler("create", create))
-    dispatcher.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_token))
+    @dp.message_handler()
+    async def react_to_messages(msg: Message):
+        for emoji in reacts:
+            try:
+                await msg.reply(emoji)
+            except:
+                pass
+
+    running_bots[user_id] = bot
+    await dp.start_polling()
+
+def run_all_bots():
+    loop = asyncio.get_event_loop()
+    for user_id, data in user_data.items():
+        loop.create_task(start_bot(user_id, data["token"], data["reacts"]))
+    loop.run_forever()
+
+if _name_ == "_main_":
+    run_all_bots()
